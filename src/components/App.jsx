@@ -15,7 +15,7 @@ export class App extends Component {
     name: '',
     page: 1,
     showModal: false,
-    loading: false,
+    isLoading: false,
     largeImageURL: '',
     tags: '',
   };
@@ -29,7 +29,7 @@ export class App extends Component {
   };
 
   getData = ({ name, page }) => {
-    this.setState({ loading: true });
+    this.setState({ isLoading: true });
     try {
       axios
         .get(
@@ -56,7 +56,7 @@ export class App extends Component {
       console.error(error.message);
     } finally {
       this.setState({
-        loading: false,
+        isLoading: false,
       });
     }
   };
@@ -66,7 +66,7 @@ export class App extends Component {
   };
 
   render() {
-    const { hits, showModal, loading, largeImageURL, tags } = this.state;
+    const { hits, showModal, isLoading, largeImageURL, tags } = this.state;
 
     return (
       <div
@@ -79,7 +79,7 @@ export class App extends Component {
       >
         <Searchbar onSubmitHandler={this.getData} />
 
-        {loading && <Loader />}
+        {isLoading && <Loader />}
 
         {hits && (
           <ImageGallery>
