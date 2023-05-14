@@ -1,105 +1,113 @@
-import React, { Component } from 'react';
-import axios from 'axios';
+import { Component } from 'react';
+import { getImage } from '../server/api';
+import { SearchBar } from './searchbar/Searchbar';
+import { ImageGallery } from './imageGallery/ImageGallery';
+import { Loader } from './loader/Loader';
+import { Modal } from './modal/Modal';
+import { Button } from './button/Button'
 import Notiflix from 'notiflix';
-import { BASE_URL, API_KEY, SEARCH_PARAMS } from './../api/server';
-import Searchbar from './searchbar/Searchbar';
-import LoadMore from './loadMore/LoadMore';
-import ImageGallery from './imageGallery/ImageGallery.jsx';
-import ImageGalleryItem from './imageGalleryItem/ImageGalleryItem';
-import Modal from './modal/Modal';
-import Loader from './loader/Loader';
+
 
 export class App extends Component {
   state = {
-    hits: [],
-    name: '',
+    images: [],
+    query: '',
     page: 1,
-    showModal: false,
     isLoading: false,
-    largeImageURL: '',
+    showModal: false,
+    largeImage: '',
     tags: '',
+    total: 0,
+    error: null,
   };
 
-  switchStatusModal = (imageURL, tag) => {
-    this.setState(({ showModal }) => ({
-      showModal: !showModal,
-      largeImageURL: imageURL,
-      tags: tag,
-    }));
-  };
+  componentDidUpdate(_, prevState) {
+    const { query, page } = this.state;
+    if (prevState.query !== query || prevState.page !== page) {
+      this.fetchImages(query, page);
+    }
+  }
 
-  getData = ({ name, page }) => {
-    this.setState({ isLoading: true });
+  fetchImages = async (query, page) => {
     try {
-      axios
-        .get(
-          `${BASE_URL}?key=${API_KEY}&q=${name}&page=${page}&${SEARCH_PARAMS}`
-        )
-        .then(response => {
-          if (!response.data.hits.length) {
-            Notiflix.Notify.failure('No images found!');
-          } else if (name === this.state.name) {
-            this.setState(state => ({
-              hits: [...state.hits, ...response.data.hits],
-              name: name,
-              page: state.page + 1,
-            }));
-          } else {
-            this.setState(state => ({
-              hits: response.data.hits,
-              name: name,
-              page: state.page + 1,
-            }));
-          }
-        });
+      this.setState({ isLoading: true });
+      const data = await getImage(query, page);
+      if (data.hits.length === 0) {
+        return  (Notiflix.Notify.failure(
+          'You have to enter something first to search for images!'
+      ))}
+      this.setState(({ images }) => ({
+        images: [...images, ...data.hits],
+        total: data.totalHits,
+      }));
     } catch (error) {
-      console.error(error.message);
+      this.setState({ error });
     } finally {
-      this.setState({
-        isLoading: false,
-      });
+      this.setState({ isLoading: false });
     }
   };
 
-  loadMore = () => {
-    this.getData(this.state);
+  handleSubmit = query => {
+    this.setState({ query, page: 1, images: [] });
+  };
+
+  onLoadMore = () => {
+    this.setState(prev => ({ page: prev.page + 1 }));
+  };
+
+  onOpenModal = (largeImage, tags) => {
+    this.setState({ showModal: true, largeImage, tags });
+  };
+
+  onCloseModal = () => {
+    this.setState({ showModal: false, largeImage: '', tags: '' });
   };
 
   render() {
-    const { hits, showModal, isLoading, largeImageURL, tags } = this.state;
-
+    const { images, isLoading, total, showModal, largeImage, tags } =
+      this.state;
+    const totalPage = total / images.length;
     return (
       <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr',
-          gridGap: '16px',
-          paddingBottom: '24px',
-        }}
-      >
-        <Searchbar onSubmitHandler={this.getData} />
+      style={{
+  display: 'grid',
+  position: 'relative',
+  gridTemplateColumns: '1fr',
+  gridTemplateRows: 'auto 1fr auto',
+  gridGap: '16px',
+  paddingBottom: '24px',
+}}
+>
+      
 
-        {isLoading && <Loader />}
-
-        {hits && (
-          <ImageGallery>
-            <ImageGalleryItem
-              articles={hits}
-              onImage={this.switchStatusModal}
-            />
-          </ImageGallery>
+        <SearchBar onSubmit={this.handleSubmit} />
+        
+          {isLoading && <Loader />}
+          {images.length !== 0 && (
+            <ImageGallery gallery={images} onOpenModal={this.onOpenModal} />
+          )}
+         {totalPage > 1 && !isLoading && images.length !== 0 && (
+          <Button onClick={this.onLoadMore} />
         )}
-
+  
         {showModal && (
           <Modal
-            onClose={this.switchStatusModal}
-            url={largeImageURL}
-            alt={tags}
+            largeImage={largeImage}
+            tags={tags}
+            onCloseModal={this.onCloseModal}
           />
         )}
-
-        {hits.length > 0 && <LoadMore onButtonClick={() => this.loadMore()} />}
       </div>
     );
   }
 }
+
+// style={{
+//   display: 'grid',
+//   position: 'relative',
+//   gridTemplateColumns: '1fr',
+//   gridTemplateRows: 'auto 1fr auto',
+//   gridGap: '16px',
+//   paddingBottom: '24px',
+// }}
+// >
